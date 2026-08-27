@@ -482,11 +482,20 @@
     setTimeout(() => playTone(660, 'square', 0.12, 0.08), 80);
   }
 
-  function toggleAudio() {
-    audioEnabled = !audioEnabled;
-    document.getElementById('audio-toggle').innerText = audioEnabled ? "🔊 SOUND: ON" : "🔇 SOUND: OFF";
-    if (audioEnabled) playHotspotSFX();
+  const bgMusic = document.getElementById('bg-music');
+
+function toggleAudio() {
+  audioEnabled = !audioEnabled;
+  const toggleBtn = document.getElementById('audio-toggle');
+  
+  if (audioEnabled) {
+    bgMusic.play().catch(e => console.log("Playback error:", e));
+    toggleBtn.innerText = "🔊 SOUND: ON";
+  } else {
+    bgMusic.pause();
+    toggleBtn.innerText = "🔇 SOUND: OFF";
   }
+}
 
   /* Page Navigation Logic */
   let currentPage = 1;
