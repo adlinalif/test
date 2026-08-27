@@ -1,0 +1,749 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>Memento Mori - An 8-Bit Storybook</title>
+<link href="https://fonts.googleapis.com/css2?family=Press+Start+2P&display=swap" rel="stylesheet">
+<style>
+  :root {
+    --bg-dark: #09090e;
+    --paper-bg: #e6dfcc;
+    --paper-border: #2b251f;
+    --pixel-gold: #e5a93b;
+    --pixel-red: #a83232;
+    --pixel-text: #211c18;
+    --pixel-dim: #6e655f;
+    --pixel-accent: #4a6b82;
+  }
+
+  * {
+    box-sizing: border-box;
+    user-select: none;
+    margin: 0;
+    padding: 0;
+  }
+
+  body {
+    background-color: var(--bg-dark);
+    font-family: 'Press Start 2P', monospace;
+    color: var(--pixel-text);
+    min-height: 100vh;
+    display: flex;
+    flex-direction: column;
+    align-items: center;
+    justify-content: center;
+    overflow: hidden;
+    image-rendering: pixelated;
+    position: relative;
+  }
+
+  /* CRT Overlay Effect */
+  .crt-overlay {
+    position: fixed;
+    top: 0; left: 0; width: 100vw; height: 100vh;
+    background: linear-gradient(
+      rgba(18, 16, 16, 0) 50%, 
+      rgba(0, 0, 0, 0.25) 50%
+    );
+    background-size: 100% 4px;
+    z-index: 999;
+    pointer-events: none;
+    opacity: 0.6;
+  }
+
+  /* Header & Audio Controls */
+  .header-bar {
+    position: absolute;
+    top: 20px;
+    left: 0;
+    right: 0;
+    display: flex;
+    justify-content: space-between;
+    align-items: center;
+    padding: 0 40px;
+    z-index: 100;
+  }
+
+  .title-tag {
+    color: var(--pixel-gold);
+    font-size: 12px;
+    letter-spacing: 2px;
+    text-shadow: 2px 2px #000;
+  }
+
+  .controls {
+    display: flex;
+    gap: 15px;
+  }
+
+  .btn {
+    background: #1a1921;
+    color: var(--pixel-gold);
+    border: 3px solid var(--pixel-gold);
+    padding: 8px 12px;
+    font-family: 'Press Start 2P', monospace;
+    font-size: 10px;
+    cursor: pointer;
+    box-shadow: 4px 4px 0px #000;
+    transition: transform 0.1s, box-shadow 0.1s;
+  }
+
+  .btn:active {
+    transform: translate(2px, 2px);
+    box-shadow: 2px 2px 0px #000;
+  }
+
+  .btn:hover {
+    background: var(--pixel-gold);
+    color: #000;
+  }
+
+  /* 3D Book Stage */
+  .stage {
+    perspective: 1600px;
+    width: 960px;
+    height: 560px;
+    position: relative;
+    display: flex;
+    justify-content: center;
+    align-items: center;
+  }
+
+  .book {
+    width: 100%;
+    height: 100%;
+    position: relative;
+    transform-style: preserve-3d;
+  }
+
+  /* Book Pages */
+  .page {
+    width: 50%;
+    height: 100%;
+    position: absolute;
+    right: 0;
+    top: 0;
+    transform-origin: left center;
+    transform-style: preserve-3d;
+    transition: transform 1.2s cubic-bezier(0.4, 0.0, 0.2, 1);
+    background-color: var(--paper-bg);
+    border: 6px solid var(--paper-border);
+    box-shadow: inset 0 0 20px rgba(0,0,0,0.15), 10px 10px 0px rgba(0,0,0,0.5);
+    display: flex;
+    flex-direction: column;
+  }
+
+  .page.flipped {
+    transform: rotateY(-180deg);
+  }
+
+  /* Front and Back face setup for realistic page flip */
+  .page-face {
+    position: absolute;
+    width: 100%;
+    height: 100%;
+    backface-visibility: hidden;
+    padding: 30px;
+    display: flex;
+    flex-direction: column;
+    justify-content: space-between;
+    overflow: hidden;
+  }
+
+  .page-back {
+    transform: rotateY(180deg);
+    background-color: #dcd4be;
+  }
+
+  /* Page Content */
+  .chapter-header {
+    border-bottom: 3px dashed var(--pixel-dim);
+    padding-bottom: 12px;
+    margin-bottom: 15px;
+  }
+
+  .chapter-num {
+    font-size: 10px;
+    color: var(--pixel-red);
+    margin-bottom: 6px;
+    display: block;
+  }
+
+  .chapter-title {
+    font-size: 14px;
+    color: var(--pixel-text);
+    line-height: 1.4;
+  }
+
+  .scene-container {
+    width: 100%;
+    height: 220px;
+    background: #000;
+    border: 4px solid var(--paper-border);
+    margin-bottom: 15px;
+    position: relative;
+    overflow: hidden;
+    box-shadow: inset 0 0 10px rgba(0,0,0,0.8);
+  }
+
+  canvas.pixel-canvas {
+    width: 100%;
+    height: 100%;
+    display: block;
+  }
+
+  .story-text {
+    font-size: 9px;
+    line-height: 1.8;
+    color: var(--pixel-text);
+    text-align: justify;
+    flex-grow: 1;
+  }
+
+  .nav-footer {
+    display: flex;
+    justify-content: space-between;
+    align-items: center;
+    margin-top: 15px;
+    padding-top: 10px;
+    border-top: 2px solid var(--pixel-dim);
+  }
+
+  .page-number {
+    font-size: 9px;
+    color: var(--pixel-dim);
+  }
+
+  .turn-btn {
+    background: var(--paper-border);
+    color: var(--paper-bg);
+    border: none;
+    padding: 8px 14px;
+    font-family: 'Press Start 2P', monospace;
+    font-size: 9px;
+    cursor: pointer;
+    box-shadow: 2px 2px 0px #000;
+  }
+
+  .turn-btn:hover {
+    background: var(--pixel-gold);
+    color: #000;
+  }
+
+  /* Interactive Hotspot Overlay inside scenes */
+  .hotspot-hint {
+    position: absolute;
+    bottom: 8px;
+    right: 8px;
+    background: rgba(0,0,0,0.7);
+    color: #fff;
+    font-size: 7px;
+    padding: 4px 6px;
+    border-radius: 2px;
+    pointer-events: none;
+    animation: pulse 1.5s infinite;
+  }
+
+  @keyframes pulse {
+    0%, 100% { opacity: 0.4; }
+    50% { opacity: 1; }
+  }
+
+  /* Fixed Left Cover Base (Static Left Side) */
+  .book-base-left {
+    position: absolute;
+    left: 0;
+    top: 0;
+    width: 50%;
+    height: 100%;
+    background-color: #3b322b;
+    border: 6px solid var(--paper-border);
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    box-shadow: 10px 10px 0px rgba(0,0,0,0.5);
+    z-index: 1;
+  }
+
+  .cover-title {
+    color: var(--pixel-gold);
+    font-size: 18px;
+    text-align: center;
+    line-height: 1.8;
+    padding: 20px;
+    border: 4px double var(--pixel-gold);
+    margin: 20px;
+  }
+
+  .cover-subtitle {
+    display: block;
+    font-size: 9px;
+    color: #a89a8b;
+    margin-top: 15px;
+  }
+</style>
+</head>
+<body>
+
+<div class="crt-overlay"></div>
+
+<div class="header-bar">
+  <div class="title-tag">★ AN 8-BIT TALE OF IMPERMANENCE ★</div>
+  <div class="controls">
+    <button class="btn" id="audio-toggle" onclick="toggleAudio()">🔊 SOUND: ON</button>
+    <button class="btn" onclick="resetStory()">↺ RESTART</button>
+  </div>
+</div>
+
+<div class="stage">
+  <div class="book-base-left">
+    <div class="cover-title">
+      MEMENTO MORI
+      <span class="cover-subtitle">REMEMBER THAT YOU MUST DIE</span>
+    </div>
+  </div>
+
+  <div class="book" id="storybook">
+
+    <!-- PAGE 5 (Chapter V) -->
+    <div class="page" id="page-5" style="z-index: 5;">
+      <div class="page-face page-front">
+        <div>
+          <div class="chapter-header">
+            <span class="chapter-num">CHAPTER V</span>
+            <h2 class="chapter-title">Memento Mori</h2>
+          </div>
+          <div class="scene-container">
+            <canvas id="canvas-ch5" class="pixel-canvas"></canvas>
+            <div class="hotspot-hint">CLICK SKY TO SHINE</div>
+          </div>
+          <p class="story-text">
+            High on the cliff edge above the valley, Arthur stood in the quiet wind. He held Lily's wooden bird out over the abyss—and finally let go.<br><br>
+            As it vanished into the sunlight below, the heavy knot in his chest released. He understood now: grief was not a prison, but proof of love. Everything fades, yet the beauty lies in the fragile moment.
+          </p>
+        </div>
+        <div class="nav-footer">
+          <button class="turn-btn" onclick="prevPage(5)">◀ PREV</button>
+          <span class="page-number">05 / 05</span>
+          <button class="turn-btn" onclick="resetStory()">END ★</button>
+        </div>
+      </div>
+      <div class="page-face page-back"></div>
+    </div>
+
+    <!-- PAGE 4 (Chapter IV) -->
+    <div class="page" id="page-4" style="z-index: 6;">
+      <div class="page-face page-front">
+        <div>
+          <div class="chapter-header">
+            <span class="chapter-num">CHAPTER IV</span>
+            <h2 class="chapter-title">The Old Watchmaker</h2>
+          </div>
+          <div class="scene-container">
+            <canvas id="canvas-ch4" class="pixel-canvas"></canvas>
+            <div class="hotspot-hint">CLICK CLOCK TO TICK</div>
+          </div>
+          <p class="story-text">
+            In desperation, Arthur visited the village watchmaker, hoping somehow to reverse time. The old man pointed to a grand ticking clock on the wall.<br><br>
+            "Gears break and sands fall, Arthur," the clockmaker spoke softly. "You cannot stop the hands from moving. You can only choose how to honor the time you were given."
+          </p>
+        </div>
+        <div class="nav-footer">
+          <button class="turn-btn" onclick="prevPage(4)">◀ PREV</button>
+          <span class="page-number">04 / 05</span>
+          <button class="turn-btn" onclick="nextPage(4)">NEXT ▶</button>
+        </div>
+      </div>
+      <div class="page-face page-back"></div>
+    </div>
+
+    <!-- PAGE 3 (Chapter III) -->
+    <div class="page" id="page-3" style="z-index: 7;">
+      <div class="page-face page-front">
+        <div>
+          <div class="chapter-header">
+            <span class="chapter-num">CHAPTER III</span>
+            <h2 class="chapter-title">Frozen in Dust</h2>
+          </div>
+          <div class="scene-container">
+            <canvas id="canvas-ch3" class="pixel-canvas"></canvas>
+            <div class="hotspot-hint">CLICK ROOM TO DISTURB DUST</div>
+          </div>
+          <p class="story-text">
+            Years passed in heavy silence. Arthur kept Lily's small bedroom untouched. The bed remained unmade, her tiny shoes sitting right beside the door.<br><br>
+            Dust settled over her books like snow. Arthur sat in the dark, trapped in a shrine of memory, refusing to let the world move forward without her.
+          </p>
+        </div>
+        <div class="nav-footer">
+          <button class="turn-btn" onclick="prevPage(3)">◀ PREV</button>
+          <span class="page-number">03 / 05</span>
+          <button class="turn-btn" onclick="nextPage(3)">NEXT ▶</button>
+        </div>
+      </div>
+      <div class="page-face page-back"></div>
+    </div>
+
+    <!-- PAGE 2 (Chapter II) -->
+    <div class="page" id="page-2" style="z-index: 8;">
+      <div class="page-face page-front">
+        <div>
+          <div class="chapter-header">
+            <span class="chapter-num">CHAPTER II</span>
+            <h2 class="chapter-title">The Fog on the Ridge</h2>
+          </div>
+          <div class="scene-container">
+            <canvas id="canvas-ch2" class="pixel-canvas"></canvas>
+            <div class="hotspot-hint">CLICK FOROG TO PULSE</div>
+          </div>
+          <p class="story-text">
+            On a bitterly cold autumn evening, a thick fog swept down from the mountain ridge. Lily had gone outside to chase a fleeting swallow.<br><br>
+            When Arthur called out, only the hollow wind answered. The town searched for weeks, but all that remained at the forest edge was her small carved wooden toy.
+          </p>
+        </div>
+        <div class="nav-footer">
+          <button class="turn-btn" onclick="prevPage(2)">◀ PREV</button>
+          <span class="page-number">02 / 05</span>
+          <button class="turn-btn" onclick="nextPage(2)">NEXT ▶</button>
+        </div>
+      </div>
+      <div class="page-face page-back"></div>
+    </div>
+
+    <!-- PAGE 1 (Chapter I) -->
+    <div class="page" id="page-1" style="z-index: 9;">
+      <div class="page-face page-front">
+        <div>
+          <div class="chapter-header">
+            <span class="chapter-num">CHAPTER I</span>
+            <h2 class="chapter-title">The Remnant</h2>
+          </div>
+          <div class="scene-container">
+            <canvas id="canvas-ch1" class="pixel-canvas"></canvas>
+            <div class="hotspot-hint">CLICK HOUSE TO GLOW</div>
+          </div>
+          <p class="story-text">
+            Following a painful divorce that stripped away his youth and home, Arthur lived in a small cottage near the woods. His wife left everything behind—except their five-year-old daughter, Lily.<br><br>
+            Lily was his sole reason to breathe. Her quiet laughter echoed through the empty rooms, filling the void left by his shattered past.
+          </p>
+        </div>
+        <div class="nav-footer">
+          <div></div>
+          <span class="page-number">01 / 05</span>
+          <button class="turn-btn" onclick="nextPage(1)">NEXT ▶</button>
+        </div>
+      </div>
+      <div class="page-face page-back"></div>
+    </div>
+
+  </div>
+</div>
+
+<script>
+  /* Audio System using Web Audio API */
+  let audioCtx = null;
+  let audioEnabled = true;
+
+  function initAudio() {
+    if (!audioCtx) {
+      audioCtx = new (window.AudioContext || window.webkitAudioContext)();
+    }
+  }
+
+  function playTone(freq, type, duration, gainVal = 0.1) {
+    if (!audioEnabled) return;
+    initAudio();
+    try {
+      const osc = audioCtx.createOscillator();
+      const gain = audioCtx.createGain();
+      osc.type = type;
+      osc.frequency.setValueAtTime(freq, audioCtx.currentTime);
+      gain.gain.setValueAtTime(gainVal, audioCtx.currentTime);
+      gain.gain.exponentialRampToValueAtTime(0.0001, audioCtx.currentTime + duration);
+      osc.connect(gain);
+      gain.connect(audioCtx.destination);
+      osc.start();
+      osc.stop(audioCtx.currentTime + duration);
+    } catch (e) {}
+  }
+
+  function playPageTurnSFX() {
+    if (!audioEnabled) return;
+    initAudio();
+    // Simulate paper rustle with noise/frequency slide
+    playTone(180, 'triangle', 0.15, 0.15);
+    setTimeout(() => playTone(120, 'sine', 0.2, 0.1), 50);
+  }
+
+  function playHotspotSFX() {
+    playTone(440, 'square', 0.08, 0.08);
+    setTimeout(() => playTone(660, 'square', 0.12, 0.08), 80);
+  }
+
+  function toggleAudio() {
+    audioEnabled = !audioEnabled;
+    document.getElementById('audio-toggle').innerText = audioEnabled ? "🔊 SOUND: ON" : "🔇 SOUND: OFF";
+    if (audioEnabled) playHotspotSFX();
+  }
+
+  /* Page Navigation Logic */
+  let currentPage = 1;
+
+  function nextPage(pageNum) {
+    const pageEl = document.getElementById(`page-${pageNum}`);
+    pageEl.classList.add('flipped');
+    playPageTurnSFX();
+    
+    // Lower z-index after mid animation to stack correctly
+    setTimeout(() => {
+      pageEl.style.zIndex = pageNum;
+    }, 600);
+    
+    currentPage = pageNum + 1;
+  }
+
+  function prevPage(pageNum) {
+    const prevNum = pageNum;
+    const pageEl = document.getElementById(`page-${prevNum}`);
+    pageEl.classList.remove('flipped');
+    playPageTurnSFX();
+    
+    // Restore original z-index
+    setTimeout(() => {
+      pageEl.style.zIndex = 10 - prevNum;
+    }, 10);
+    
+    currentPage = pageNum - 1;
+  }
+
+  function resetStory() {
+    playPageTurnSFX();
+    for (let i = 1; i <= 5; i++) {
+      const pageEl = document.getElementById(`page-${i}`);
+      pageEl.classList.remove('flipped');
+      pageEl.style.zIndex = 10 - i;
+    }
+    currentPage = 1;
+  }
+
+  /* Pixel Canvas Renderer & Animations */
+  function setupCanvases() {
+    // Canvas 1: Warm Cottage
+    const c1 = document.getElementById('canvas-ch1');
+    const ctx1 = c1.getContext('2d');
+    let houseGlow = 0;
+    
+    function drawCh1() {
+      ctx1.fillStyle = '#1c2331';
+      ctx1.fillRect(0, 0, c1.width, c1.height);
+      
+      // Ground
+      ctx1.fillStyle = '#2d4a3e';
+      ctx1.fillRect(0, 110, c1.width, 40);
+      
+      // House
+      ctx1.fillStyle = '#5c3d2e';
+      ctx1.fillRect(110, 50, 80, 60);
+      
+      // Roof
+      ctx1.fillStyle = '#8b0000';
+      ctx1.beginPath();
+      ctx1.moveTo(100, 50);
+      ctx1.lineTo(150, 20);
+      ctx1.lineTo(200, 50);
+      ctx1.fill();
+
+      // Window glow
+      ctx1.fillStyle = `rgba(255, 223, 100, ${0.6 + Math.sin(houseGlow) * 0.3})`;
+      ctx1.fillRect(130, 65, 20, 20);
+
+      // Sprites (Father & Child)
+      ctx1.fillStyle = '#000';
+      ctx1.fillRect(60, 90, 10, 20); // Father
+      ctx1.fillStyle = '#e5a93b';
+      ctx1.fillRect(78, 98, 7, 12);  // Lily
+      
+      houseGlow += 0.05;
+      requestAnimationFrame(drawCh1);
+    }
+    drawCh1();
+    c1.addEventListener('click', () => { houseGlow += 2.0; playHotspotSFX(); });
+
+    // Canvas 2: Foggy Forest
+    const c2 = document.getElementById('canvas-ch2');
+    const ctx2 = c2.getContext('2d');
+    let fogOffset = 0;
+
+    function drawCh2() {
+      ctx2.fillStyle = '#0f171e';
+      ctx2.fillRect(0, 0, c2.width, c2.height);
+
+      // Pine Trees
+      ctx2.fillStyle = '#14282e';
+      for(let x = 20; x < c2.width; x += 40) {
+        ctx2.beginPath();
+        ctx2.moveTo(x, 120);
+        ctx2.lineTo(x + 15, 40);
+        ctx2.lineTo(x + 30, 120);
+        ctx2.fill();
+      }
+
+      // Empty Swing
+      ctx2.strokeStyle = '#555';
+      ctx2.lineWidth = 2;
+      ctx2.beginPath();
+      ctx2.moveTo(220, 40); ctx2.lineTo(220, 90);
+      ctx2.moveTo(240, 40); ctx2.lineTo(240, 90);
+      ctx2.stroke();
+      ctx2.fillStyle = '#8b5a2b';
+      ctx2.fillRect(215, 90, 30, 4);
+
+      // Moving Fog Layers
+      ctx2.fillStyle = 'rgba(200, 215, 225, 0.2)';
+      ctx2.fillRect((fogOffset % c2.width) - c2.width, 30, c2.width, 40);
+      ctx2.fillRect((fogOffset % c2.width), 30, c2.width, 40);
+      
+      ctx2.fillStyle = 'rgba(200, 215, 225, 0.35)';
+      ctx2.fillRect(((fogOffset*1.5) % c2.width) - c2.width, 70, c2.width, 50);
+      ctx2.fillRect(((fogOffset*1.5) % c2.width), 70, c2.width, 50);
+
+      fogOffset += 0.5;
+      requestAnimationFrame(drawCh2);
+    }
+    drawCh2();
+    c2.addEventListener('click', () => { fogOffset += 20; playHotspotSFX(); });
+
+    // Canvas 3: Dust in Empty Room
+    const c3 = document.getElementById('canvas-ch3');
+    const ctx3 = c3.getContext('2d');
+    const dustParticles = Array.from({length: 25}, () => ({
+      x: Math.random() * 300,
+      y: Math.random() * 150,
+      size: Math.random() * 2 + 1,
+      speed: Math.random() * 0.3 + 0.1
+    }));
+
+    function drawCh3() {
+      ctx3.fillStyle = '#181214';
+      ctx3.fillRect(0, 0, c3.width, c3.height);
+
+      // Empty Bed Frame
+      ctx3.fillStyle = '#3a2618';
+      ctx3.fillRect(30, 90, 90, 40);
+      ctx3.fillStyle = '#554236';
+      ctx3.fillRect(35, 80, 80, 15);
+
+      // Window Light Ray
+      ctx3.fillStyle = 'rgba(255, 255, 255, 0.05)';
+      ctx3.beginPath();
+      ctx3.moveTo(200, 0);
+      ctx3.lineTo(260, 0);
+      ctx3.lineTo(120, 150);
+      ctx3.lineTo(40, 150);
+      ctx3.fill();
+
+      // Floating Dust Particles
+      ctx3.fillStyle = 'rgba(240, 230, 200, 0.6)';
+      dustParticles.forEach(p => {
+        ctx3.fillRect(p.x, p.y, p.size, p.size);
+        p.y -= p.speed;
+        if (p.y < 0) p.y = 150;
+      });
+
+      requestAnimationFrame(drawCh3);
+    }
+    drawCh3();
+    c3.addEventListener('click', () => {
+      dustParticles.forEach(p => p.y += Math.random() * 30 - 15);
+      playHotspotSFX();
+    });
+
+    // Canvas 4: Watchmaker Clock
+    const c4 = document.getElementById('canvas-ch4');
+    const ctx4 = c4.getContext('2d');
+    let angle = 0;
+
+    function drawCh4() {
+      ctx4.fillStyle = '#14110f';
+      ctx4.fillRect(0, 0, c4.width, c4.height);
+
+      // Clock Face
+      ctx4.strokeStyle = '#e5a93b';
+      ctx4.lineWidth = 4;
+      ctx4.beginPath();
+      ctx4.arc(150, 75, 45, 0, Math.PI * 2);
+      ctx4.stroke();
+
+      // Ticking Hands
+      ctx4.save();
+      ctx4.translate(150, 75);
+      ctx4.rotate(angle);
+      ctx4.strokeStyle = '#fff';
+      ctx4.lineWidth = 3;
+      ctx4.beginPath();
+      ctx4.moveTo(0, 0);
+      ctx4.lineTo(0, -25);
+      ctx4.stroke();
+      ctx4.restore();
+
+      // Hour Hand
+      ctx4.save();
+      ctx4.translate(150, 75);
+      ctx4.rotate(angle * 0.1);
+      ctx4.strokeStyle = '#e5a93b';
+      ctx4.lineWidth = 3;
+      ctx4.beginPath();
+      ctx4.moveTo(0, 0);
+      ctx4.lineTo(15, 0);
+      ctx4.stroke();
+      ctx4.restore();
+
+      angle += 0.03;
+      requestAnimationFrame(drawCh4);
+    }
+    drawCh4();
+    c4.addEventListener('click', () => { angle += 1.0; playHotspotSFX(); });
+
+    // Canvas 5: Memento Mori Sunrise Cliff
+    const c5 = document.getElementById('canvas-ch5');
+    const ctx5 = c5.getContext('2d');
+    let pulse = 0;
+
+    function drawCh5() {
+      // Golden Sunrise Gradient
+      const grad = ctx5.createLinearGradient(0, 0, 0, 150);
+      grad.addColorStop(0, '#e5a93b');
+      grad.addColorStop(0.5, '#a83232');
+      grad.addColorStop(1, '#1c1326');
+      ctx5.fillStyle = grad;
+      ctx5.fillRect(0, 0, c5.width, c5.height);
+
+      // Sun
+      ctx5.fillStyle = `rgba(255, 240, 180, ${0.8 + Math.sin(pulse)*0.2})`;
+      ctx5.beginPath();
+      ctx5.arc(150, 60, 25, 0, Math.PI * 2);
+      ctx5.fill();
+
+      // Cliff Silhouette
+      ctx5.fillStyle = '#09090e';
+      ctx5.beginPath();
+      ctx5.moveTo(0, 150);
+      ctx5.lineTo(110, 100);
+      ctx5.lineTo(180, 115);
+      ctx5.lineTo(300, 150);
+      ctx5.fill();
+
+      // Lone Figure (Arthur) looking out
+      ctx5.fillRect(145, 95, 6, 16);
+
+      pulse += 0.04;
+      requestAnimationFrame(drawCh5);
+    }
+    drawCh5();
+    c5.addEventListener('click', () => { pulse += 1.5; playHotspotSFX(); });
+  }
+
+  window.addEventListener('load', setupCanvases);
+</script>
+</body>
+</html>
